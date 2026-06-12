@@ -147,7 +147,10 @@ verify_main_on_remote() {
   fi
 }
 
-checkout_feature() {
+checkout_feature_if_needed() {
+  if [[ "$FEATURE" == "$ORIGINAL_BRANCH" ]]; then
+    return 0
+  fi
   log "Checking out ${FEATURE}..."
   git checkout "$FEATURE"
 }
@@ -179,7 +182,7 @@ main() {
   stash_if_dirty
   fetch_main
   verify_main_on_remote
-  checkout_feature
+  checkout_feature_if_needed
   rebase_onto_main
 
   SUCCEEDED=true
