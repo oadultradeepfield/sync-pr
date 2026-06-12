@@ -14,5 +14,5 @@ Add `--push` to also force-push the rebased branch to `origin` with lease after 
 
 ```bash
 sync-pr --push main
-sync-pr feature/wallet-refactor --push main
+sync-pr feature/frontend-refactor --push main
 ```
