@@ -8,15 +8,17 @@ ORIGINAL_BRANCH=""
 FEATURE=""
 MAIN=""
 REBASE_CONFLICT=false
+PUSH=false
 
 usage() {
   cat <<'EOF'
 Usage:
-  sync-pr <main>                  Rebase current branch onto origin/<main>
-  sync-pr <feature> <main>        Rebase <feature> onto origin/<main>
+  sync-pr [--push] <main>                  Rebase current branch onto origin/<main>
+  sync-pr [--push] <feature> <main>        Rebase <feature> onto origin/<main>
 
 Examples:
   sync-pr main
+  sync-pr --push main
   sync-pr feature/wallet-refactor main
 EOF
 }
@@ -89,13 +91,22 @@ on_exit() {
 }
 
 parse_args() {
-  if [[ $# -eq 0 || $# -gt 2 ]]; then
+  local args=()
+  for arg in "$@"; do
+    case "$arg" in
+      --push) PUSH=true ;;
+      -*) error "unknown option: $arg"; usage >&2; exit 1 ;;
+      *) args+=("$arg") ;;
+    esac
+  done
+
+  if [[ ${#args[@]} -eq 0 || ${#args[@]} -gt 2 ]]; then
     usage >&2
     exit 1
   fi
 
-  if [[ $# -eq 1 ]]; then
-    MAIN="$1"
+  if [[ ${#args[@]} -eq 1 ]]; then
+    MAIN="${args[0]}"
     FEATURE="$(git branch --show-current)"
     if [[ -z "$FEATURE" ]]; then
       error "not on a branch; specify a feature branch explicitly"
@@ -103,8 +114,8 @@ parse_args() {
       exit 1
     fi
   else
-    FEATURE="$1"
-    MAIN="$2"
+    FEATURE="${args[0]}"
+    MAIN="${args[1]}"
   fi
 }
 
@@ -170,6 +181,21 @@ pop_stash() {
   fi
 }
 
+push_feature() {
+  [[ "$PUSH" == true ]] || return 0
+
+  if ! branch_exists_on_remote "$FEATURE"; then
+    error "cannot push: '${FEATURE}' does not exist on ${REMOTE}"
+    exit 1
+  fi
+
+  log "Fetching ${REMOTE}/${FEATURE} for push lease..."
+  git fetch "$REMOTE" "$FEATURE"
+
+  log "Force pushing ${FEATURE} to ${REMOTE} with lease..."
+  git push --force-with-lease "$REMOTE" "$FEATURE"
+}
+
 main() {
   trap on_exit EXIT
 
@@ -188,9 +214,14 @@ main() {
   SUCCEEDED=true
   trap - EXIT
 
+  push_feature
   pop_stash
 
-  log "Successfully rebased ${FEATURE} onto ${REMOTE}/${MAIN}."
+  if [[ "$PUSH" == true ]]; then
+    log "Successfully rebased and pushed ${FEATURE} onto ${REMOTE}/${MAIN}."
+  else
+    log "Successfully rebased ${FEATURE} onto ${REMOTE}/${MAIN}."
+  fi
 }
 
 main "$@"
