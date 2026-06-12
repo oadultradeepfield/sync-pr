@@ -137,7 +137,7 @@ stash_if_dirty() {
 
 fetch_main() {
   log "Fetching ${REMOTE}/${MAIN}..."
-  git fetch "$REMOTE" "$MAIN"
+  git fetch --show-forced-updates "$REMOTE" "$MAIN"
 }
 
 verify_main_on_remote() {
